@@ -1,29 +1,76 @@
-# WhyGraph: anonymous reproducibility artifact (SIGMOD 2027 submission)
+# WhyGraph Neo4j Plugin
 
-Contents:
+This module contains the active Neo4j plugin source for WhyGraph.
 
-- `why-query-neo4j/`: the Neo4j procedure library (Java/Maven) evaluated in the paper, with its unit tests.
-- Final rerun: not included in this historical-only package.
-- `human_study/`: historical study materials.
 
-Evidence groups:
+## Layout
 
-- `budgeted_evidence_policy`: 8 files
-- `cross_scale_graph_instance_holdout`: 7 files
-- `extensions_and_thresholds`: 15 files
-- `fragment_coverage`: 22 files
-- `historical_baselines`: 4 files
-- `independent_transfer`: 18 files
-- `llm`: 4 files
-- `organic_shapes`: 3 files
-- `paired_hardened`: 11 files
-- `planner_runtime_audit`: 1 files
-- `query_anchor_holdout`: 9 files
-- `resource_isolation`: 8 files
-- `snapshot_cost_and_freshness`: 6 files
-- `why_not_blocker_detection`: 8 files
-- `worked_example`: 2 files
+- `src/main/java/com/whyquery/neo4j/`: main `why.*` procedures and rewriting logic
+- `src/main/java/org/neo4j/whygraph/`: compatibility `whygraph.*` procedures
+- `src/main/resources/`: Neo4j service registration and optional LLM config
+- `src/test/java/`: unit and integration-oriented tests
+- `scripts/build.sh`: canonical build entrypoint
+- `scripts/install.sh`: canonical Neo4j Desktop install entrypoint
+- `docs/examples.md`: compact runnable examples
+- `user_guide.md`: detailed procedure and option reference
 
-JSON/JSONL files larger than 1 MB are stored as deterministic gzip (`.jsonl.gz`). SHA-256 hashes of every file are in `MANIFEST.json`. No credentials, local paths, database files or author identifiers are included (`PRIVACY_AUDIT.json`). Supply Neo4j credentials via `NEO4J_PASSWORD` only.
+## Canonical Commands
 
-The code is released under the MIT License (`LICENSE`).
+Build:
+
+```bash
+./scripts/build.sh
+```
+
+Install into a Neo4j Desktop DBMS:
+
+```bash
+./scripts/install.sh "/path/to/dbms-xxxx"
+```
+
+Restart Neo4j after installation, then verify that the procedures are loaded:
+
+```cypher
+SHOW PROCEDURES YIELD name
+WHERE name STARTS WITH 'why.'
+RETURN name
+ORDER BY name;
+```
+
+Run tests:
+
+```bash
+mvn test
+```
+
+## Notes
+
+- The `why.*` procedures are the primary public API used by the artifact and evaluation harness.
+- The `whygraph.*` procedures are kept as compatibility wrappers for earlier iterations of the plugin.
+- Native/C++ scaffolding and generated local build artifacts have been removed from the active module layout; `scripts/` and `src/` are the canonical entry points.
+
+## V2 Procedures (`why2.*`)
+
+The plugin now also exposes a parallel v2 namespace designed to evolve the formal core without breaking v1:
+
+- `why2.empty(query, options)`
+- `why2.few(query, target, options)`
+- `why2.many(query, target, options)`
+- `why2.not(query, target, options)`
+
+`why2.not` accepts either `witness` (single) or `witnesses` (list):
+
+```cypher
+CALL why2.not(
+  "MATCH (p:NRPerson)-[:ERwasBornIn]->(c:NRCity) WHERE p.name='This_Person_Does_Not_Exist' RETURN p,c",
+  {
+    witnesses: [
+      {p:{properties:{name:'Diederik_Korteweg'}}},
+      {p:{properties:{name:'Ada_Lovelace'}}}
+    ]
+  },
+  {strict_core:true, use_schema:true, use_planner_stats:true}
+)
+YIELD status, payload, diagnostics, errorMessage
+RETURN status, payload['witness_recovery'], diagnostics, errorMessage;
+```
