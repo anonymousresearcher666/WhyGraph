@@ -4,8 +4,6 @@ Contents:
 
 - `why-query-neo4j/`: the Neo4j procedure library (Java/Maven) evaluated in the paper, with its unit tests.
 - Final rerun: not included in this historical-only package.
-- `evaluation/historical/`: dated earlier evidence; do not present it as single-build final results.
-- `evaluation/vldb/`: frozen workloads and profiles; `evaluation/scripts/`: generators, runners, scorers.
 - `human_study/`: historical study materials.
 
 Evidence groups:
